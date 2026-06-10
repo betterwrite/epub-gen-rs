@@ -1,0 +1,31 @@
+{
+  "name": "epub-gen-rs",
+  "version": "0.0.0",
+  "description": "Generate EPUB files from Rust — Node.js native addon",
+  "main": "index.js",
+  "napi": {
+    "name": "epub-gen-rs",
+    "triples": {
+      "defaults": true,
+      "additional": [
+        "x86_64-unknown-linux-musl",
+        "aarch64-unknown-linux-gnu",
+        "aarch64-apple-darwin"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "prepublishOnly": "napi prepublish -t npm"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^2.18.0"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "*.node"
+  ],
+  "license": "MIT"
+}

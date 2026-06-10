@@ -1,6 +1,8 @@
 /target
 /Cargo.lock
 
+node_modules
+
 *.zip
 *.epub
 

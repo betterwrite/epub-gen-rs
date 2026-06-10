@@ -1,0 +1,82 @@
+#![deny(clippy::all)]
+
+use napi::bindgen_prelude::Buffer;
+use napi_derive::napi;
+
+/// Metadata for the EPUB document.
+#[napi(object)]
+pub struct EpubInfo {
+  pub title: String,
+  pub description: String,
+  pub publisher: String,
+  pub author: String,
+  /// Label used for the Table of Contents page.
+  pub toc_title: String,
+  pub lang: String,
+  pub fonts: Vec<String>,
+  /// Raw CSS string injected as `styles.css`. Pass `null` for an empty stylesheet.
+  pub css: Option<String>,
+  /// EPUB spec version (use `3`).
+  pub version: i32,
+}
+
+/// EPUB builder.
+///
+/// Each chapter is an array of strings: index 0 is the chapter title,
+/// subsequent entries become `<p>` elements in the chapter body.
+///
+/// ```js
+/// const epub = new Epub(info, [
+///   ['Chapter One', 'First paragraph.', 'Second paragraph.'],
+/// ]);
+/// ```
+#[napi]
+pub struct Epub {
+  inner: epub_gen::EPUB,
+}
+
+#[napi]
+impl Epub {
+  /// Create a new EPUB builder.
+  #[napi(constructor)]
+  pub fn new(info: EpubInfo, chapters: Vec<Vec<String>>) -> Self {
+    Epub {
+      inner: epub_gen::EPUB::new(
+        epub_gen::Info {
+          title: info.title,
+          description: info.description,
+          publisher: info.publisher,
+          author: info.author,
+          toc_title: info.toc_title,
+          lang: info.lang,
+          fonts: info.fonts,
+          css: info.css,
+          version: info.version as i8,
+        },
+        chapters,
+      ),
+    }
+  }
+
+  /// Build the EPUB and write it to `<title>.epub` in the current working directory.
+  #[napi]
+  pub fn run(&mut self) {
+    self.inner.run();
+  }
+
+  /// Build the EPUB and return its contents as a `Buffer`.
+  /// Useful when you want to stream, upload, or write the file yourself.
+  ///
+  /// ```js
+  /// const buf = epub.archive();
+  /// fs.writeFileSync('my-book.epub', buf);
+  /// ```
+  #[napi]
+  pub fn archive(&self) -> napi::Result<Buffer> {
+    let bytes = self
+      .inner
+      .archive()
+      .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+    Ok(bytes.into())
+  }
+}

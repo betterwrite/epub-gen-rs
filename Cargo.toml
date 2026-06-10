@@ -1,3 +1,7 @@
+[workspace]
+members = [".", "node"]
+resolver = "2"
+
 [package]
 name = "epub-gen"
 version = "0.0.0"
@@ -10,8 +14,6 @@ exclude = [
   "**/*.epub",
   "**/*.zip",
 ]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 zip = { version = "0.6.4", default-features = false, features = ["deflate-zlib"] }
