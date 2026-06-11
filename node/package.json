@@ -1,10 +1,11 @@
 {
-  "name": "epub-gen-rs",
-  "version": "0.0.0",
+  "name": "epub-gen3",
+  "version": "0.1.0",
   "description": "Generate EPUB files from Rust — Node.js native addon",
   "main": "index.js",
+  "types": "index.d.ts",
   "napi": {
-    "name": "epub-gen-rs",
+    "name": "epub-gen3",
     "triples": {
       "defaults": true,
       "additional": [

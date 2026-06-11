@@ -1,3 +1,4 @@
+use std::fmt::Write as FmtWrite;
 use std::fs;
 use std::io::{Cursor, Write};
 use zip::write::FileOptions;
@@ -38,32 +39,32 @@ impl EPUB {
       let content: String = chapter
         .iter()
         .skip(1)
-        .map(|p| format!("      <p>{}</p>\n", p))
+        .map(|p| format!("      <p>{p}</p>\n"))
         .collect();
 
-      let xhtml = format!(
-        r#"<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:epub="http://www.idpf.org/2007/ops"
-      xml:lang="{lang}" lang="{lang}">
-  <head>
-    <meta charset="UTF-8" />
-    <title>{title}</title>
-    <link rel="stylesheet" type="text/css" href="styles.css" />
-  </head>
-  <body epub:type="bodymatter">
-    <section epub:type="chapter">
-      <h1>{title}</h1>
-{content}    </section>
-  </body>
-</html>"#,
-        lang = self.info.lang,
-        title = title,
-        content = content,
-      );
+      // Built with write! to avoid Rust 2021 reserved-prefix errors on
+      // identifier" patterns (e.g. bodymatter", chapter", css") inside
+      // format!(r#"..."#).
+      let mut s = String::new();
+      s.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+      s.push_str("<!DOCTYPE html>\n");
+      write!(s, "<html xmlns=\"http://www.w3.org/1999/xhtml\"\n").unwrap();
+      write!(s, "      xmlns:epub=\"http://www.idpf.org/2007/ops\"\n").unwrap();
+      write!(s, "      xml:lang=\"{0}\" lang=\"{0}\">\n", self.info.lang).unwrap();
+      s.push_str("  <head>\n");
+      s.push_str("    <meta charset=\"UTF-8\" />\n");
+      write!(s, "    <title>{title}</title>\n").unwrap();
+      s.push_str("    <link rel=\"stylesheet\" type=\"text/css\" href=\"styles.css\" />\n");
+      s.push_str("  </head>\n");
+      s.push_str("  <body epub:type=\"bodymatter\">\n");
+      s.push_str("    <section epub:type=\"chapter\">\n");
+      write!(s, "      <h1>{title}</h1>\n").unwrap();
+      s.push_str(&content);
+      s.push_str("    </section>\n");
+      s.push_str("  </body>\n");
+      s.push_str("</html>\n");
 
-      (title, xhtml)
+      (title, s)
     }).collect()
   }
 
@@ -71,35 +72,30 @@ impl EPUB {
     let items: String = self.chapters
       .iter()
       .map(|ch| {
-        // id uses default slugify separator (-), href uses (_) for the filename
         let id = slugify!(&ch[0]);
         let href = slugify!(&ch[0], separator = "_");
-        format!(
-          r#"    <item id="{id}" href="{href}.xhtml" media-type="application/xhtml+xml" />"#,
-        )
+        format!("    <item id=\"{id}\" href=\"{href}.xhtml\" media-type=\"application/xhtml+xml\" />")
       })
       .collect::<Vec<_>>()
       .join("\n");
 
     format!(
-      r#"    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml" />
-    <item id="toc" href="toc.xhtml" media-type="application/xhtml+xml" properties="nav" />
-    <item id="css" href="styles.css" media-type="text/css" />
-{items}"#,
+      "    <item id=\"ncx\" href=\"toc.ncx\" media-type=\"application/x-dtbncx+xml\" />\n\
+       <item id=\"toc\" href=\"toc.xhtml\" media-type=\"application/xhtml+xml\" properties=\"nav\" />\n\
+       <item id=\"css\" href=\"styles.css\" media-type=\"text/css\" />\n\
+       {items}"
     )
   }
 
-  // spine idrefs must match the manifest item ids exactly
+  // spine idrefs must match the manifest item ids exactly (both use slugify default separator)
   fn spine(&self) -> String {
     let items: String = self.chapters
       .iter()
-      .map(|ch| format!(r#"    <itemref idref="{}" />"#, slugify!(&ch[0])))
+      .map(|ch| format!("    <itemref idref=\"{}\" />", slugify!(&ch[0])))
       .collect::<Vec<_>>()
       .join("\n");
 
-    format!(
-      "<spine toc=\"ncx\">\n    <itemref idref=\"toc\" />\n{items}\n  </spine>",
-    )
+    format!("<spine toc=\"ncx\">\n    <itemref idref=\"toc\" />\n{items}\n  </spine>")
   }
 
   fn toc_xhtml(&self) -> String {
@@ -108,7 +104,7 @@ impl EPUB {
       .map(|ch| {
         let title = &ch[0];
         let href = format!("{}.xhtml", slugify!(title, separator = "_"));
-        format!(r#"        <li><a href="{href}">{title}</a></li>"#)
+        format!("        <li><a href=\"{href}\">{title}</a></li>")
       })
       .collect::<Vec<_>>()
       .join("\n")
@@ -122,40 +118,97 @@ impl EPUB {
         let id = slugify!(&ch[0]);
         let title = &ch[0];
         let src = format!("{}.xhtml", slugify!(&ch[0], separator = "_"));
+        let order = i + 1;
         format!(
-          r#"    <navPoint id="{id}" playOrder="{order}" class="chapter">
-      <navLabel><text>{title}</text></navLabel>
-      <content src="{src}"/>
-    </navPoint>"#,
-          order = i + 1,
+          "    <navPoint id=\"{id}\" playOrder=\"{order}\" class=\"chapter\">\n\
+                 <navLabel><text>{title}</text></navLabel>\n\
+                 <content src=\"{src}\"/>\n\
+               </navPoint>"
         )
       })
       .collect::<Vec<_>>()
       .join("\n");
 
-    format!(
-      r#"<?xml version="1.0" encoding="UTF-8"?>
-<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
-  <head>
-    <meta name="dtb:uid" content="urn:uuid:{uuid}" />
-    <meta name="dtb:depth" content="1" />
-    <meta name="dtb:totalPageCount" content="0" />
-    <meta name="dtb:maxPageNumber" content="0" />
-  </head>
-  <docTitle><text>{title}</text></docTitle>
-  <docAuthor><text>{author}</text></docAuthor>
-  <navMap>
-    <navPoint id="toc" playOrder="0" class="chapter">
-      <navLabel><text>{toc_title}</text></navLabel>
-      <content src="toc.xhtml"/>
-    </navPoint>
-{nav_points}
-  </navMap>
-</ncx>"#,
-      title = self.info.title,
-      author = self.info.author,
-      toc_title = self.info.toc_title,
-    )
+    let title = &self.info.title;
+    let author = &self.info.author;
+    let toc_title = &self.info.toc_title;
+
+    // write! used throughout to avoid identifier" reserved-prefix issue
+    let mut s = String::new();
+    s.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+    write!(s, "<ncx xmlns=\"http://www.daisy.org/z3986/2005/ncx/\" version=\"2005-1\">\n").unwrap();
+    s.push_str("  <head>\n");
+    write!(s, "    <meta name=\"dtb:uid\" content=\"urn:uuid:{uuid}\" />\n").unwrap();
+    s.push_str("    <meta name=\"dtb:depth\" content=\"1\" />\n");
+    s.push_str("    <meta name=\"dtb:totalPageCount\" content=\"0\" />\n");
+    s.push_str("    <meta name=\"dtb:maxPageNumber\" content=\"0\" />\n");
+    s.push_str("  </head>\n");
+    write!(s, "  <docTitle><text>{title}</text></docTitle>\n").unwrap();
+    write!(s, "  <docAuthor><text>{author}</text></docAuthor>\n").unwrap();
+    s.push_str("  <navMap>\n");
+    write!(s, "    <navPoint id=\"toc\" playOrder=\"0\" class=\"chapter\">\n").unwrap();
+    write!(s, "      <navLabel><text>{toc_title}</text></navLabel>\n").unwrap();
+    s.push_str("      <content src=\"toc.xhtml\"/>\n");
+    s.push_str("    </navPoint>\n");
+    write!(s, "{nav_points}\n").unwrap();
+    s.push_str("  </navMap>\n");
+    s.push_str("</ncx>\n");
+    s
+  }
+
+  // Builds content.opf using write! to avoid Rust 2021 reserved-prefix errors
+  // on identifier" sequences (relators", modified", fonts") inside format!(r#"..."#).
+  fn opf(&self, uuid: &Uuid, modified: &str, today: &str, year: &str) -> String {
+    let mut s = String::new();
+    s.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+    s.push_str("<package xmlns=\"http://www.idpf.org/2007/opf\"\n");
+    s.push_str("         version=\"3.0\"\n");
+    s.push_str("         unique-identifier=\"BookId\"\n");
+    write!(s, "         xml:lang=\"{}\"\n", self.info.lang).unwrap();
+    s.push_str("         prefix=\"ibooks: http://vocabulary.itunes.apple.com/rdf/ibooks/vocabulary-extensions-1.0/\">\n\n");
+    s.push_str("  <metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\n");
+    write!(s, "    <dc:identifier id=\"BookId\">urn:uuid:{uuid}</dc:identifier>\n").unwrap();
+    write!(s, "    <dc:title>{}</dc:title>\n", self.info.title).unwrap();
+    write!(s, "    <dc:language>{}</dc:language>\n", self.info.lang).unwrap();
+    write!(s, "    <dc:creator id=\"creator\">{}</dc:creator>\n", self.info.author).unwrap();
+    s.push_str("    <meta refines=\"#creator\" property=\"role\" scheme=\"marc:relators\">aut</meta>\n");
+    write!(s, "    <dc:publisher>{}</dc:publisher>\n", self.info.publisher).unwrap();
+    write!(s, "    <dc:description>{}</dc:description>\n", self.info.description).unwrap();
+    write!(s, "    <dc:date>{today}</dc:date>\n").unwrap();
+    write!(s, "    <dc:rights>Copyright &#x00A9; {year} {}</dc:rights>\n", self.info.publisher).unwrap();
+    write!(s, "    <meta property=\"dcterms:modified\">{modified}</meta>\n").unwrap();
+    s.push_str("    <meta property=\"ibooks:specified-fonts\">false</meta>\n");
+    s.push_str("  </metadata>\n\n");
+    write!(s, "  <manifest>\n{}\n  </manifest>\n\n", self.manifest()).unwrap();
+    write!(s, "  {}\n\n", self.spine()).unwrap();
+    write!(s, "  <guide>\n    <reference type=\"toc\" title=\"{}\" href=\"toc.xhtml\"/>\n  </guide>\n\n", self.info.toc_title).unwrap();
+    s.push_str("</package>\n");
+    s
+  }
+
+  // Builds toc.xhtml (EPUB 3 nav document) using write! for the same reason.
+  fn nav_xhtml(&self) -> String {
+    let mut s = String::new();
+    s.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+    s.push_str("<!DOCTYPE html>\n");
+    write!(s, "<html xmlns=\"http://www.w3.org/1999/xhtml\"\n").unwrap();
+    s.push_str("      xmlns:epub=\"http://www.idpf.org/2007/ops\"\n");
+    write!(s, "      xml:lang=\"{0}\" lang=\"{0}\">\n", self.info.lang).unwrap();
+    s.push_str("  <head>\n");
+    s.push_str("    <meta charset=\"UTF-8\" />\n");
+    write!(s, "    <title>{}</title>\n", self.info.title).unwrap();
+    s.push_str("    <link rel=\"stylesheet\" type=\"text/css\" href=\"styles.css\" />\n");
+    s.push_str("  </head>\n");
+    s.push_str("  <body epub:type=\"frontmatter\">\n");
+    s.push_str("    <nav id=\"toc\" epub:type=\"toc\">\n");
+    write!(s, "      <h1>{}</h1>\n", self.info.toc_title).unwrap();
+    s.push_str("      <ol>\n");
+    write!(s, "{}\n", self.toc_xhtml()).unwrap();
+    s.push_str("      </ol>\n");
+    s.push_str("    </nav>\n");
+    s.push_str("  </body>\n");
+    s.push_str("</html>\n");
+    s
   }
 
   pub fn archive(&self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
@@ -191,102 +244,27 @@ impl EPUB {
     zip.add_directory("META-INF/", stored)?;
     zip.start_file("META-INF/container.xml", stored)?;
     zip.write_all(
-      br#"<?xml version="1.0" encoding="UTF-8"?>
-<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
-  <rootfiles>
-    <rootfile full-path="OEBPS/content.opf"
-              media-type="application/oebps-package+xml"/>
-  </rootfiles>
-</container>"#,
+      b"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
+        <container version=\"1.0\" xmlns=\"urn:oasis:names:tc:opendocument:xmlns:container\">\n\
+          <rootfiles>\n\
+            <rootfile full-path=\"OEBPS/content.opf\"\n\
+                      media-type=\"application/oebps-package+xml\"/>\n\
+          </rootfiles>\n\
+        </container>",
     )?;
 
     // ── OEBPS ───────────────────────────────────────────────────────────────
     zip.add_directory("OEBPS/", deflated)?;
 
-    // content.opf: <spine> is a direct child of <package>, never inside <guide>
     zip.start_file("OEBPS/content.opf", deflated)?;
-    let opf = format!(
-      r#"<?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://www.idpf.org/2007/opf"
-         version="3.0"
-         unique-identifier="BookId"
-         xml:lang="{lang}"
-         prefix="ibooks: http://vocabulary.itunes.apple.com/rdf/ibooks/vocabulary-extensions-1.0/">
+    zip.write_all(self.opf(&uuid, &modified, &today, &year).as_bytes())?;
 
-  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-    <dc:identifier id="BookId">urn:uuid:{uuid}</dc:identifier>
-    <dc:title>{title}</dc:title>
-    <dc:language>{lang}</dc:language>
-    <dc:creator id="creator">{author}</dc:creator>
-    <meta refines="#creator" property="role" scheme="marc:relators">aut</meta>
-    <dc:publisher>{publisher}</dc:publisher>
-    <dc:description>{description}</dc:description>
-    <dc:date>{today}</dc:date>
-    <dc:rights>Copyright &#x00A9; {year} {publisher}</dc:rights>
-    <meta property="dcterms:modified">{modified}</meta>
-    <meta property="ibooks:specified-fonts">false</meta>
-  </metadata>
-
-  <manifest>
-{manifest}
-  </manifest>
-
-  {spine}
-
-  <guide>
-    <reference type="toc" title="{toc_title}" href="toc.xhtml"/>
-  </guide>
-
-</package>"#,
-      lang = self.info.lang,
-      uuid = uuid,
-      title = self.info.title,
-      author = self.info.author,
-      publisher = self.info.publisher,
-      description = self.info.description,
-      today = today,
-      year = year,
-      modified = modified,
-      toc_title = self.info.toc_title,
-      manifest = self.manifest(),
-      spine = self.spine(),
-    );
-    zip.write_all(opf.as_bytes())?;
-
-    // toc.ncx — EPUB 2 backwards compat; shares the same UUID as content.opf
     zip.start_file("OEBPS/toc.ncx", deflated)?;
     zip.write_all(self.toc_ncx(&uuid).as_bytes())?;
 
-    // toc.xhtml — EPUB 3 nav document
     zip.start_file("OEBPS/toc.xhtml", deflated)?;
-    let nav = format!(
-      r#"<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:epub="http://www.idpf.org/2007/ops"
-      xml:lang="{lang}" lang="{lang}">
-  <head>
-    <meta charset="UTF-8" />
-    <title>{title}</title>
-    <link rel="stylesheet" type="text/css" href="styles.css" />
-  </head>
-  <body epub:type="frontmatter">
-    <nav id="toc" epub:type="toc">
-      <h1>{toc_title}</h1>
-      <ol>
-{items}
-      </ol>
-    </nav>
-  </body>
-</html>"#,
-      lang = self.info.lang,
-      title = self.info.title,
-      toc_title = self.info.toc_title,
-      items = self.toc_xhtml(),
-    );
-    zip.write_all(nav.as_bytes())?;
+    zip.write_all(self.nav_xhtml().as_bytes())?;
 
-    // chapter XHTML files
     for (title, xhtml) in &chapters {
       zip.start_file(
         format!("OEBPS/{}.xhtml", slugify!(title, separator = "_")),
@@ -295,14 +273,13 @@ impl EPUB {
       zip.write_all(xhtml.as_bytes())?;
     }
 
-    // styles.css
     zip.start_file("OEBPS/styles.css", deflated)?;
     match &self.info.css {
       Some(css) => zip.write_all(css.as_bytes())?,
       None => zip.write_all(b"")?,
     }
 
-    Ok(zip.finish()?.into_inner())
+    Ok(zip.finish()?.clone().into_inner())
   }
 
   pub fn write(&mut self, data: Vec<u8>) {

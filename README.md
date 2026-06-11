@@ -18,6 +18,8 @@
 
 ### Example
 
+#### Rust
+
 ```rs
 let mut epub = EPUB::new(Info {
   title: String::from("A Nice Title"),
@@ -35,4 +37,49 @@ let mut epub = EPUB::new(Info {
 ]]);
 
 epub.run();
+```
+
+#### Node
+
+```ts
+'use strict'
+
+const fs = require('fs')
+const path = require('path')
+const { Epub } = require('../node')
+
+const epub = new Epub(
+  {
+    title: 'exemplo',
+    description: 'Livro de exemplo gerado pelo addon nativo epub-gen-rs.',
+    publisher: 'epub-gen-rs',
+    author: 'Autor Exemplo',
+    tocTitle: 'Sumário',
+    lang: 'pt',
+    fonts: [],
+    css: undefined,
+    version: 3,
+  },
+  [
+    [
+      'Capítulo Um',
+      'Nullam tempor, metus vitae sagittis semper, massa nulla posuere ipsum.',
+      'Aliquam non posuere ex. Duis fermentum odio metus, quis ultrices nulla cursus vitae.',
+    ],
+    [
+      'Capítulo Dois',
+      'Pellentesque tempor, eros eu consectetur cursus, magna turpis lacinia nunc.',
+      'Integer iaculis arcu vitae elementum convallis. Praesent quam magna, maximus sed ullamcorper quis.',
+    ],
+    [
+      'Capítulo Três',
+      'Sed ac lobortis erat, id egestas tellus. Nullam velit turpis, maximus eget lacus quis.',
+    ],
+  ],
+)
+
+const buf = epub.archive()
+const outPath = path.join(__dirname, 'exemplo.epub')
+fs.writeFileSync(outPath, buf)
+console.log(`EPUB gerado em: ${outPath} (${buf.length} bytes)`)
 ```
