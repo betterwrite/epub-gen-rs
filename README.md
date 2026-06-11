@@ -10,9 +10,9 @@
 - [x] UUID for XHTML's items
 - [ ] UUID for resources
 - [ ] UUID for paths
-- [ ] Validade data entries
+- [x] Validade data entries
 - [ ] Optional META_INF (encryption.xml, metadata.xml, manifest.xml, ...)
-- [ ] `container.xml` access
+- [x] `container.xml` access
 - [ ] Images, Checkbox and List's
 - [ ] Custom Fonts
 
