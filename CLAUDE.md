@@ -48,4 +48,7 @@ OEBPS/styles.css          (Deflated — empty unless `Info::css` is Some)
 Chapter filenames are derived with `slugify!(title, separator = "_")`. The same slug is used for manifest item `id` (with `-` separator) and `href` (with `_` separator) — keep both in sync when touching `manifest()`.
 
 ### Known gaps (from README)
-UUID is only assigned per-book, not per-resource or per-path. `spine_ncx()` generates `idref` values like `content_N_item_N` that must match the manifest item ids — they currently do not (manifest uses slugified titles). This is a known bug.
+UUID is only assigned per-book, not per-resource or per-path.
+
+### Spine / manifest id contract
+`spine()` itemrefs use `slugify!(title)` (hyphen separator). `manifest()` uses the same slug for `id` and `slugify!(title, separator = "_")` for `href`. Keep both helpers in sync — a mismatch breaks every reading system.
