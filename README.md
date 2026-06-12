@@ -81,7 +81,7 @@ const epub = new Epub(
 )
 
 const buf = epub.archive()
-const outPath = path.join(__dirname, 'exemplo.epub')
+const outPath = path.join(__dirname, 'example.epub')
 fs.writeFileSync(outPath, buf)
-console.log(`EPUB gerado em: ${outPath} (${buf.length} bytes)`)
+console.log(`${outPath} (${buf.length} bytes)`)
 ```
