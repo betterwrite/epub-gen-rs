@@ -1,6 +1,8 @@
 /target
 /Cargo.lock
 dist/
+node/wasm
+
 
 node_modules
 *.node

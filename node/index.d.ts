@@ -24,13 +24,6 @@ export interface EpubInfo {
   /** Raw XML written to `META-INF/manifest.xml`. Pass `null` to omit. */
   manifestXml?: string
 }
-/**
- * An image embedded in the EPUB.
- *
- * Images are written to `OEBPS/images/<path>` and can be referenced from
- * chapter paragraphs with raw markup, e.g.
- * `<img src="images/diagram.png" alt="Diagram" />`.
- */
 /** A CSS stylesheet included in the EPUB. */
 export interface EpubStylesheet {
   /** Unique manifest id (letters, digits, `-`, `_`). */
@@ -40,6 +33,13 @@ export interface EpubStylesheet {
   /** Raw CSS content. */
   content: string
 }
+/**
+ * An image embedded in the EPUB.
+ *
+ * Images are written to `OEBPS/images/<path>` and can be referenced from
+ * chapter paragraphs with raw markup, e.g.
+ * `<img src="images/diagram.png" alt="Diagram" />`.
+ */
 export interface EpubImage {
   /** Unique manifest id (letters, digits, `-`, `_`). */
   id: string
@@ -71,12 +71,12 @@ export interface EpubImage {
 export declare class Epub {
   /** Create a new EPUB builder. */
   constructor(info: EpubInfo, chapters: Array<Array<string>>)
+  /** Attach additional CSS stylesheets. Linked after `css` (from `EpubInfo`), in order. */
+  setStylesheets(stylesheets: Array<EpubStylesheet>): void
   /**
    * Attach images to the EPUB. Pass an array of `EpubImage` objects.
    * Flag exactly one with `cover: true` to set the book cover.
    */
-  /** Attach additional CSS stylesheets. Linked after `css` (from `EpubInfo`), in order. */
-  setStylesheets(stylesheets: Array<EpubStylesheet>): void
   setImages(images: Array<EpubImage>): void
   /** Build the EPUB and write it to `<title>.epub` in the current working directory. */
   run(): void
