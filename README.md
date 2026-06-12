@@ -41,12 +41,14 @@ epub.run();
 
 #### Node
 
+`npm install epub-gen3`
+
 ```ts
 'use strict'
 
 const fs = require('fs')
 const path = require('path')
-const { Epub } = require('../node')
+const { Epub } = require('epub-gen3')
 
 const epub = new Epub(
   {
