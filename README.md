@@ -182,10 +182,9 @@ fs.writeFileSync('example.epub', epub.archive())
 #### Browser
 
 ```ts
-import init, { Epub } from 'epub-gen3/wasm/epub_gen_wasm.js'
-import wasmUrl from 'epub-gen3/wasm/epub_gen_wasm_bg.wasm?url'
+import { Epub, ready } from 'epub-gen3/browser'
 
-await init(wasmUrl)
+await ready   // waits for the WASM module to initialise
 
 const epub = new Epub(
   { title: 'Meu Livro', description: '...', publisher: '...', author: '...',
@@ -200,13 +199,20 @@ const a     = Object.assign(document.createElement('a'), { href: url, download: 
 a.click()
 ```
 
+> Vite users: add `optimizeDeps.exclude: ['epub-gen3']` to `vite.config.ts` so Vite does not
+> try to pre-bundle the WASM glue code.
+>
+> ```ts
+> // vite.config.ts
+> export default { optimizeDeps: { exclude: ['epub-gen3'] } }
+> ```
+
 With a cover image fetched from a URL:
 
 ```ts
-import init, { Epub } from 'epub-gen3/wasm/epub_gen_wasm.js'
-import wasmUrl from 'epub-gen3/wasm/epub_gen_wasm_bg.wasm?url'
+import { Epub, ready } from 'epub-gen3/browser'
 
-await init(wasmUrl)
+await ready
 
 const coverRes = await fetch('/cover.jpg')
 const coverData = new Uint8Array(await coverRes.arrayBuffer())

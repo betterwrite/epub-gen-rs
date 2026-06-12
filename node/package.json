@@ -3,8 +3,17 @@
   "version": "0.2.0",
   "description": "Generate EPUB files from Rust — Node.js native addon",
   "main": "index.js",
-  "browser": "./wasm/epub_gen_wasm.js",
+  "browser": "./browser.js",
   "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "browser": "./browser.js",
+      "import": "./index.mjs",
+      "require": "./index.js"
+    },
+    "./browser": "./browser.js",
+    "./wasm/*": "./wasm/*"
+  },
   "napi": {
     "name": "epub-gen3",
     "triples": {
@@ -28,6 +37,8 @@
   },
   "files": [
     "index.js",
+    "index.mjs",
+    "browser.js",
     "index.d.ts",
     "*.node",
     "wasm/"
