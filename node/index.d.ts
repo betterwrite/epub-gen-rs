@@ -17,11 +17,11 @@ export interface EpubInfo {
   css?: string
   /** EPUB spec version (use `3`). */
   version: number
-  /** Raw XML written to `META-INF/encryption.xml`. Omit or pass `null` to skip. */
+  /** Raw XML written to `META-INF/encryption.xml`. Pass `null` to omit. */
   encryption?: string
-  /** Raw XML written to `META-INF/metadata.xml`. Omit or pass `null` to skip. */
+  /** Raw XML written to `META-INF/metadata.xml`. Pass `null` to omit. */
   metadataXml?: string
-  /** Raw XML written to `META-INF/manifest.xml`. Omit or pass `null` to skip. */
+  /** Raw XML written to `META-INF/manifest.xml`. Pass `null` to omit. */
   manifestXml?: string
 }
 /**
@@ -34,7 +34,10 @@ export interface EpubInfo {
 export interface EpubImage {
   /** Unique manifest id (letters, digits, `-`, `_`). */
   id: string
-  /** File name written under `OEBPS/images/`, e.g. `cover.png`. The extension determines the media-type. */
+  /**
+   * File name written under `OEBPS/images/`, e.g. `cover.png`.
+   * The extension determines the media-type.
+   */
   path: string
   /** Raw image bytes. */
   data: Buffer
@@ -60,8 +63,8 @@ export declare class Epub {
   /** Create a new EPUB builder. */
   constructor(info: EpubInfo, chapters: Array<Array<string>>)
   /**
-   * Attach images to the EPUB. Flag exactly one with `cover: true`
-   * to set the book cover.
+   * Attach images to the EPUB. Pass an array of `EpubImage` objects.
+   * Flag exactly one with `cover: true` to set the book cover.
    */
   setImages(images: Array<EpubImage>): void
   /** Build the EPUB and write it to `<title>.epub` in the current working directory. */
