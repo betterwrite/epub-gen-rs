@@ -8,10 +8,8 @@
 - [x] Deflated Zip
 - [x] Stored for valid decrypted files
 - [x] UUID for XHTML's items
-- [ ] UUID for resources
-- [ ] UUID for paths
 - [x] Validade data entries
-- [ ] Optional META_INF (encryption.xml, metadata.xml, manifest.xml, ...)
+- [x] Optional META_INF (encryption.xml, metadata.xml, manifest.xml, ...)
 - [x] `container.xml` access
 - [x] Images
 - [ ] Checkbox and List's
