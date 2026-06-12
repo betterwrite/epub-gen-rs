@@ -3,15 +3,18 @@
   "version": "0.2.2",
   "description": "Generate EPUB files from Rust — Node.js native addon",
   "main": "index.js",
-  "browser": "./browser.js",
-  "types": "index.d.ts",
+  "browser": "./dist/browser.mjs",
+  "types": "dist/index.d.mts",
   "exports": {
     ".": {
-      "browser": "./browser.js",
-      "import": "./index.mjs",
+      "browser": "./dist/browser.mjs",
+      "import": "./dist/index.mjs",
       "require": "./index.js"
     },
-    "./browser": "./browser.js",
+    "./browser": {
+      "import": "./dist/browser.mjs",
+      "types": "./dist/browser.d.mts"
+    },
     "./wasm/*": "./wasm/*"
   },
   "napi": {
@@ -28,19 +31,22 @@
   "scripts": {
     "build": "napi build --platform --release",
     "build:debug": "napi build --platform",
+    "build:ts": "tsup",
     "build:wasm": "wasm-pack build ../wasm --target web --out-dir ../node/wasm && node -e \"require('fs').writeFileSync('wasm/.gitignore', '')\"",
-    "build:all": "napi build --platform --release && npm run build:wasm",
-    "prepublishOnly": "npm run build:wasm"
+    "build:all": "napi build --platform --release && npm run build:wasm && npm run build:ts",
+    "prepublishOnly": "npm run build:wasm && npm run build:ts"
   },
   "devDependencies": {
     "@napi-rs/cli": "^2.18.0",
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
     "wasm-pack": "^0.13.1"
   },
   "files": [
     "index.js",
-    "index.mjs",
-    "browser.js",
     "index.d.ts",
+    "dist/",
     "*.node",
     "wasm/"
   ],
