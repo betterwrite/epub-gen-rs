@@ -12,6 +12,7 @@
 - [x] Optional META_INF (encryption.xml, metadata.xml, manifest.xml, ...)
 - [x] `container.xml` access
 - [x] Images
+- [x] Multiple CSS stylesheets
 - [ ] Checkbox and List's
 - [ ] Custom Fonts
 
@@ -32,6 +33,7 @@ let mut epub = EPUB::new(Info {
   fonts: vec![String::from("Roboto")],
   css: None,
   version: 3,
+  stylesheets: vec![],
   encryption: None,
   metadata_xml: None,
   manifest_xml: None,
@@ -43,7 +45,7 @@ let mut epub = EPUB::new(Info {
 epub.run();
 ```
 
-With a cover image and an inline figure:
+With a cover image, an inline figure, and multiple stylesheets:
 
 ```rs
 use std::fs;
@@ -51,7 +53,7 @@ use std::fs;
 let cover_bytes = fs::read("cover.jpg").unwrap();
 let figure_bytes = fs::read("figure.png").unwrap();
 
-let epub = EPUB::new(
+let mut epub = EPUB::new(
   Info {
     title: String::from("A Nice Title"),
     description: String::from("..."),
@@ -60,8 +62,15 @@ let epub = EPUB::new(
     toc_title: String::from("Table of Contents"),
     lang: String::from("en"),
     fonts: vec![],
-    css: None,
+    css: Some(String::from("body { font-family: serif; }")),
     version: 3,
+    stylesheets: vec![
+      Stylesheet {
+        id: String::from("typo"),
+        path: String::from("css/typography.css"),
+        content: String::from("h1 { font-size: 2rem; } p { line-height: 1.6; }"),
+      },
+    ],
     encryption: None,
     metadata_xml: None,
     manifest_xml: None,
@@ -77,7 +86,7 @@ let epub = EPUB::new(
     id: String::from("cover-img"),
     path: String::from("cover.jpg"),
     data: cover_bytes,
-    cover: true,              // generates cover.xhtml + cover-image manifest property
+    cover: true,
   },
   Image {
     id: String::from("figure-img"),
@@ -134,7 +143,7 @@ fs.writeFileSync(outPath, buf)
 console.log(`${outPath} (${buf.length} bytes)`)
 ```
 
-With a cover image and an inline figure:
+With a cover image, an inline figure, and multiple stylesheets:
 
 ```ts
 const fs = require('fs')
@@ -149,7 +158,7 @@ const epub = new Epub(
     tocTitle: 'Toc Title',
     lang: 'en',
     fonts: [],
-    css: undefined,
+    css: 'body { font-family: serif; }',
     version: 3,
   },
   [
@@ -161,19 +170,13 @@ const epub = new Epub(
   ],
 )
 
+epub.setStylesheets([
+  { id: 'typo', path: 'css/typography.css', content: 'h1 { font-size: 2rem; } p { line-height: 1.6; }' },
+])
+
 epub.setImages([
-  {
-    id: 'cover-img',
-    path: 'cover.jpg',
-    data: fs.readFileSync('cover.jpg'),
-    cover: true,   // generates cover.xhtml and sets cover-image manifest property
-  },
-  {
-    id: 'figure-img',
-    path: 'figure.png',
-    data: fs.readFileSync('figure.png'),
-    cover: false,
-  },
+  { id: 'cover-img', path: 'cover.jpg', data: fs.readFileSync('cover.jpg'), cover: true },
+  { id: 'figure-img', path: 'figure.png', data: fs.readFileSync('figure.png'), cover: false },
 ])
 
 fs.writeFileSync('example.epub', epub.archive())
@@ -187,10 +190,14 @@ import { Epub, ready } from 'epub-gen3/browser'
 await ready   // waits for the WASM module to initialise
 
 const epub = new Epub(
-  { title: 'Meu Livro', description: '...', publisher: '...', author: '...',
-    tocTitle: 'Sumário', lang: 'en', fonts: [], version: 3 },
+  { title: 'My Book', description: '...', publisher: '...', author: '...',
+    tocTitle: 'Sumário', lang: 'pt', fonts: [], version: 3 },
   [['1', 'Foo bar baz']]
 )
+
+epub.setStylesheets([
+  { id: 'base', path: 'css/base.css', content: 'body { font-family: serif; line-height: 1.6; }' },
+])
 
 const bytes = epub.archive()
 const blob  = new Blob([bytes], { type: 'application/epub+zip' })
@@ -218,10 +225,10 @@ const coverRes = await fetch('/cover.jpg')
 const coverData = new Uint8Array(await coverRes.arrayBuffer())
 
 const epub = new Epub(
-  { title: 'Meu Livro', description: '...', publisher: '...', author: '...',
-    tocTitle: 'Sumário', lang: 'pt', fonts: [], version: 3 },
+  { title: 'My Book', description: '...', publisher: '...', author: '...',
+    tocTitle: 'Summary', lang: 'pt', fonts: [], version: 3 },
   [
-    ['Chapter 1', 'Texto do capítulo.'],
+    ['Chapter 1', 'Text.'],
     ['Chapter 2', '<img src="images/cover.jpg" alt="Cover" />'],
   ]
 )

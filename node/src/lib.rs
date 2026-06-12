@@ -26,6 +26,17 @@ pub struct EpubInfo {
   pub manifest_xml: Option<String>,
 }
 
+/// A CSS stylesheet included in the EPUB.
+#[napi(object)]
+pub struct EpubStylesheet {
+  /// Unique manifest id (letters, digits, `-`, `_`).
+  pub id: String,
+  /// Path relative to `OEBPS/`, e.g. `"css/typography.css"`.
+  pub path: String,
+  /// Raw CSS content.
+  pub content: String,
+}
+
 /// An image embedded in the EPUB.
 ///
 /// Images are written to `OEBPS/images/<path>` and can be referenced from
@@ -79,6 +90,7 @@ impl Epub {
           fonts: info.fonts,
           css: info.css,
           version: info.version as i8,
+          stylesheets: vec![],
           encryption: info.encryption,
           metadata_xml: info.metadata_xml,
           manifest_xml: info.manifest_xml,
@@ -86,6 +98,16 @@ impl Epub {
         chapters,
       ),
     }
+  }
+
+  /// Attach additional CSS stylesheets. Linked after `css` (from `EpubInfo`), in order.
+  #[napi]
+  pub fn set_stylesheets(&mut self, stylesheets: Vec<EpubStylesheet>) {
+    let sheets = stylesheets
+      .into_iter()
+      .map(|s| epub_gen::Stylesheet { id: s.id, path: s.path, content: s.content })
+      .collect();
+    self.inner.set_stylesheets(sheets);
   }
 
   /// Attach images to the EPUB. Pass an array of `EpubImage` objects.

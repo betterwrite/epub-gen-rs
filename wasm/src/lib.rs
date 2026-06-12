@@ -29,6 +29,14 @@ struct EpubImageInput {
   cover: bool,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EpubStylesheetInput {
+  id: String,
+  path: String,
+  content: String,
+}
+
 /// EPUB builder for browser environments.
 ///
 /// ```js
@@ -60,6 +68,7 @@ pub struct Epub {
   manifest_xml: Option<String>,
   chapters: Vec<Vec<String>>,
   images: Vec<EpubImageInput>,
+  stylesheets: Vec<EpubStylesheetInput>,
 }
 
 #[wasm_bindgen]
@@ -92,7 +101,17 @@ impl Epub {
       manifest_xml: info.manifest_xml,
       chapters,
       images: Vec::new(),
+      stylesheets: Vec::new(),
     })
+  }
+
+  /// Attach additional CSS stylesheets. Linked after `css` (from info), in order.
+  /// Each entry: `{ id: string, path: string, content: string }`.
+  #[wasm_bindgen(js_name = setStylesheets)]
+  pub fn set_stylesheets(&mut self, stylesheets: JsValue) -> Result<(), JsError> {
+    self.stylesheets = serde_wasm_bindgen::from_value(stylesheets)
+      .map_err(|e| JsError::new(&e.to_string()))?;
+    Ok(())
   }
 
   /// Attach images. Pass an array of `{ id, path, data, cover }` objects
@@ -121,6 +140,15 @@ impl Epub {
         fonts: self.fonts.clone(),
         css: self.css.clone(),
         version: self.version,
+        stylesheets: self
+          .stylesheets
+          .iter()
+          .map(|s| epub_gen::Stylesheet {
+            id: s.id.clone(),
+            path: s.path.clone(),
+            content: s.content.clone(),
+          })
+          .collect(),
         encryption: self.encryption.clone(),
         metadata_xml: self.metadata_xml.clone(),
         manifest_xml: self.manifest_xml.clone(),

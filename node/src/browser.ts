@@ -3,6 +3,12 @@ import type { EpubInfo } from './types.js'
 
 export type { EpubInfo }
 
+export interface EpubStylesheet {
+  id: string
+  path: string
+  content: string
+}
+
 export interface EpubImageBrowser {
   id: string
   path: string
@@ -26,6 +32,11 @@ export class Epub {
 
   constructor(info: EpubInfo, chapters: string[][]) {
     this.inner = new WasmEpub(info, chapters)
+  }
+
+  /** Attach additional CSS stylesheets. Linked after `css` (from info), in order. */
+  setStylesheets(stylesheets: EpubStylesheet[]): void {
+    ;(this.inner as unknown as Record<string, (v: unknown) => void>).setStylesheets(stylesheets)
   }
 
   /** Attach images. `data` may be a `Uint8Array` or a base64-encoded string. */

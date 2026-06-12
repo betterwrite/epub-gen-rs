@@ -6,6 +6,20 @@ use slugify::slugify;
 use chrono::Utc;
 use uuid::Uuid;
 
+/// A CSS stylesheet included in the EPUB.
+///
+/// Each stylesheet is written to `OEBPS/<path>`, added to the OPF manifest
+/// with `media-type="text/css"`, and linked from every content document via
+/// `<link rel="stylesheet">` in declaration order.
+pub struct Stylesheet {
+  /// Unique manifest id (valid XML id — letters, digits, `-`, `_`).
+  pub id: String,
+  /// Path relative to `OEBPS/`, e.g. `"css/base.css"` or `"typography.css"`.
+  pub path: String,
+  /// Raw CSS content.
+  pub content: String,
+}
+
 pub struct Info {
   pub title: String,
   pub description: String,
@@ -14,8 +28,13 @@ pub struct Info {
   pub toc_title: String,
   pub lang: String,
   pub fonts: Vec<String>,
+  /// Convenience shorthand: raw CSS written to `OEBPS/styles.css` and linked
+  /// first in every chapter. Use `stylesheets` when you need multiple files or
+  /// custom paths.
   pub css: Option<String>,
   pub version: i8,
+  /// Additional CSS stylesheets. Linked after `css` (if any), in order.
+  pub stylesheets: Vec<Stylesheet>,
   /// Raw XML written to `META-INF/encryption.xml` when `Some`.
   /// Describes encryption applied to container resources (EPUB spec §4.3.3).
   pub encryption: Option<String>,
@@ -87,9 +106,28 @@ impl EPUB {
     self.images = images;
   }
 
+  /// Replace the extra stylesheets in place.
+  pub fn set_stylesheets(&mut self, stylesheets: Vec<Stylesheet>) {
+    self.info.stylesheets = stylesheets;
+  }
+
   /// The cover image, if any image was flagged `cover: true`.
   fn cover(&self) -> Option<&Image> {
     self.images.iter().find(|img| img.cover)
+  }
+
+  /// All stylesheets in link order: the legacy `css` field first (as
+  /// `styles.css`), then every entry in `info.stylesheets`.
+  fn all_stylesheets(&self) -> Vec<(&str, &str, &str)> {
+    // (manifest-id, href, content)
+    let mut list: Vec<(&str, &str, &str)> = Vec::new();
+    if self.info.css.is_some() {
+      list.push(("css", "styles.css", self.info.css.as_deref().unwrap_or("")));
+    }
+    for s in &self.info.stylesheets {
+      list.push((&s.id, &s.path, &s.content));
+    }
+    list
   }
 
   pub fn run(&mut self) {
@@ -118,7 +156,9 @@ impl EPUB {
       s.push_str("  <head>\n");
       s.push_str("    <meta charset=\"UTF-8\" />\n");
       write!(s, "    <title>{title}</title>\n").unwrap();
-      s.push_str("    <link rel=\"stylesheet\" type=\"text/css\" href=\"styles.css\" />\n");
+      for (_, href, _) in self.all_stylesheets() {
+        write!(s, "    <link rel=\"stylesheet\" type=\"text/css\" href=\"{href}\" />\n").unwrap();
+      }
       s.push_str("  </head>\n");
       s.push_str("  <body epub:type=\"bodymatter\">\n");
       s.push_str("    <section epub:type=\"chapter\">\n");
@@ -164,10 +204,21 @@ impl EPUB {
       ""
     };
 
+    let css_items: String = self
+      .all_stylesheets()
+      .into_iter()
+      .map(|(id, href, _)| {
+        format!("    <item id=\"{id}\" href=\"{href}\" media-type=\"text/css\" />")
+      })
+      .collect::<Vec<_>>()
+      .join("\n");
+
     let mut s = String::new();
     s.push_str("    <item id=\"ncx\" href=\"toc.ncx\" media-type=\"application/x-dtbncx+xml\" />\n");
     s.push_str("    <item id=\"toc\" href=\"toc.xhtml\" media-type=\"application/xhtml+xml\" properties=\"nav\" />\n");
-    s.push_str("    <item id=\"css\" href=\"styles.css\" media-type=\"text/css\" />");
+    if !css_items.is_empty() {
+      s.push_str(&css_items);
+    }
     s.push_str(cover_page);
     if !items.is_empty() {
       s.push('\n');
@@ -328,7 +379,9 @@ impl EPUB {
     s.push_str("  <head>\n");
     s.push_str("    <meta charset=\"UTF-8\" />\n");
     write!(s, "    <title>{}</title>\n", self.info.title).unwrap();
-    s.push_str("    <link rel=\"stylesheet\" type=\"text/css\" href=\"styles.css\" />\n");
+    for (_, href, _) in self.all_stylesheets() {
+      write!(s, "    <link rel=\"stylesheet\" type=\"text/css\" href=\"{href}\" />\n").unwrap();
+    }
     s.push_str("  </head>\n");
     s.push_str("  <body epub:type=\"frontmatter\">\n");
     s.push_str("    <nav id=\"toc\" epub:type=\"toc\">\n");
@@ -437,10 +490,9 @@ impl EPUB {
       }
     }
 
-    zip.start_file("OEBPS/styles.css", deflated)?;
-    match &self.info.css {
-      Some(css) => zip.write_all(css.as_bytes())?,
-      None => zip.write_all(b"")?,
+    for (_, href, content) in self.all_stylesheets() {
+      zip.start_file(format!("OEBPS/{href}"), deflated)?;
+      zip.write_all(content.as_bytes())?;
     }
 
     Ok(zip.finish()?.clone().into_inner())
@@ -472,6 +524,7 @@ mod tests {
         fonts: vec![],
         css: None,
         version: 3,
+        stylesheets: vec![],
         encryption: None,
         metadata_xml: None,
         manifest_xml: None,
@@ -515,6 +568,7 @@ mod tests {
         fonts: vec![],
         css: None,
         version: 3,
+        stylesheets: vec![],
         encryption: None,
         metadata_xml: None,
         manifest_xml: None,

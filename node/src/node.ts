@@ -9,6 +9,12 @@ const NapiEpub = binding.Epub
 
 export type { EpubInfo }
 
+export interface EpubStylesheet {
+  id: string
+  path: string
+  content: string
+}
+
 export interface EpubImage {
   id: string
   path: string
@@ -28,6 +34,11 @@ export class Epub {
 
   constructor(info: EpubInfo, chapters: string[][]) {
     this.inner = new NapiEpub(info, chapters)
+  }
+
+  /** Attach additional CSS stylesheets. Linked after `css` (from info), in order. */
+  setStylesheets(stylesheets: EpubStylesheet[]): void {
+    this.inner.setStylesheets(stylesheets)
   }
 
   /** Attach images. `data` may be a `Buffer` or a base64-encoded string. */

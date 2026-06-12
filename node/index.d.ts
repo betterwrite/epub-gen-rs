@@ -31,6 +31,15 @@ export interface EpubInfo {
  * chapter paragraphs with raw markup, e.g.
  * `<img src="images/diagram.png" alt="Diagram" />`.
  */
+/** A CSS stylesheet included in the EPUB. */
+export interface EpubStylesheet {
+  /** Unique manifest id (letters, digits, `-`, `_`). */
+  id: string
+  /** Path relative to `OEBPS/`, e.g. `"css/typography.css"`. */
+  path: string
+  /** Raw CSS content. */
+  content: string
+}
 export interface EpubImage {
   /** Unique manifest id (letters, digits, `-`, `_`). */
   id: string
@@ -66,6 +75,8 @@ export declare class Epub {
    * Attach images to the EPUB. Pass an array of `EpubImage` objects.
    * Flag exactly one with `cover: true` to set the book cover.
    */
+  /** Attach additional CSS stylesheets. Linked after `css` (from `EpubInfo`), in order. */
+  setStylesheets(stylesheets: Array<EpubStylesheet>): void
   setImages(images: Array<EpubImage>): void
   /** Build the EPUB and write it to `<title>.epub` in the current working directory. */
   run(): void
