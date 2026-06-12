@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Generate EPUB files from Rust — Node.js native addon",
   "main": "index.js",
+  "browser": "./wasm/epub_gen_wasm.js",
   "types": "index.d.ts",
   "napi": {
     "name": "epub-gen3",
@@ -18,15 +19,18 @@
   "scripts": {
     "build": "napi build --platform --release",
     "build:debug": "napi build --platform",
-    "prepublish": "napi build --platform --release"
+    "build:wasm": "wasm-pack build ../wasm --target web --out-dir ../node/wasm",
+    "build:all": "napi build --platform --release && npm run build:wasm"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^2.18.0"
+    "@napi-rs/cli": "^2.18.0",
+    "wasm-pack": "^0.13.1"
   },
   "files": [
     "index.js",
     "index.d.ts",
-    "*.node"
+    "*.node",
+    "wasm/"
   ],
   "license": "MIT"
 }

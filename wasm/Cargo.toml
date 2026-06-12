@@ -1,0 +1,24 @@
+[package]
+name = "epub-gen-wasm"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+epub-gen = { path = ".." }
+
+# uuid requires the "js" feature to use crypto.getRandomValues in the browser
+getrandom = { version = "0.2", features = ["js"] }
+[dependencies.uuid]
+version = "1.3.0"
+features = ["v4", "js"]
+
+# chrono requires "wasmbind" to read the current time via Date.now() in WASM
+[dependencies.chrono]
+version = "0.4.24"
+features = ["clock", "wasmbind"]

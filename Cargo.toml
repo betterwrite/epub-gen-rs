@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "node"]
+members = [".", "node", "wasm"]
 resolver = "2"
 
 [package]
@@ -16,7 +16,7 @@ exclude = [
 ]
 
 [dependencies]
-zip = { version = "0.6.4", default-features = false, features = ["deflate-zlib"] }
+zip = { version = "0.6.4", default-features = false, features = ["deflate-miniz"] }
 slugify = "0.1.0"
 chrono = { version = "0.4.24", features = ["clock"] }
 [dependencies.uuid]
