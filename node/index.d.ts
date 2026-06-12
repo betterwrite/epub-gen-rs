@@ -17,6 +17,12 @@ export interface EpubInfo {
   css?: string
   /** EPUB spec version (use `3`). */
   version: number
+  /** Raw XML written to `META-INF/encryption.xml`. Omit or pass `null` to skip. */
+  encryption?: string
+  /** Raw XML written to `META-INF/metadata.xml`. Omit or pass `null` to skip. */
+  metadataXml?: string
+  /** Raw XML written to `META-INF/manifest.xml`. Omit or pass `null` to skip. */
+  manifestXml?: string
 }
 /**
  * An image embedded in the EPUB.

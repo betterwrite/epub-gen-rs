@@ -13,6 +13,9 @@ struct EpubInfoInput {
   fonts: Vec<String>,
   css: Option<String>,
   version: i8,
+  encryption: Option<String>,
+  metadata_xml: Option<String>,
+  manifest_xml: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -52,6 +55,9 @@ pub struct Epub {
   fonts: Vec<String>,
   css: Option<String>,
   version: i8,
+  encryption: Option<String>,
+  metadata_xml: Option<String>,
+  manifest_xml: Option<String>,
   chapters: Vec<Vec<String>>,
   images: Vec<EpubImageInput>,
 }
@@ -81,6 +87,9 @@ impl Epub {
       fonts: info.fonts,
       css: info.css,
       version: info.version,
+      encryption: info.encryption,
+      metadata_xml: info.metadata_xml,
+      manifest_xml: info.manifest_xml,
       chapters,
       images: Vec::new(),
     })
@@ -112,6 +121,9 @@ impl Epub {
         fonts: self.fonts.clone(),
         css: self.css.clone(),
         version: self.version,
+        encryption: self.encryption.clone(),
+        metadata_xml: self.metadata_xml.clone(),
+        manifest_xml: self.manifest_xml.clone(),
       },
       self.chapters.clone(),
     );

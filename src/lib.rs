@@ -16,6 +16,15 @@ pub struct Info {
   pub fonts: Vec<String>,
   pub css: Option<String>,
   pub version: i8,
+  /// Raw XML written to `META-INF/encryption.xml` when `Some`.
+  /// Describes encryption applied to container resources (EPUB spec §4.3.3).
+  pub encryption: Option<String>,
+  /// Raw XML written to `META-INF/metadata.xml` when `Some`.
+  /// Container-level metadata supplement (EPUB spec §4.3.4).
+  pub metadata_xml: Option<String>,
+  /// Raw XML written to `META-INF/manifest.xml` when `Some`.
+  /// Lists files in the container beyond what the OPF covers (EPUB spec §4.3.5).
+  pub manifest_xml: Option<String>,
 }
 
 /// An image embedded in the EPUB.
@@ -375,6 +384,19 @@ impl EPUB {
         </container>",
     )?;
 
+    if let Some(xml) = &self.info.encryption {
+      zip.start_file("META-INF/encryption.xml", deflated)?;
+      zip.write_all(xml.as_bytes())?;
+    }
+    if let Some(xml) = &self.info.metadata_xml {
+      zip.start_file("META-INF/metadata.xml", deflated)?;
+      zip.write_all(xml.as_bytes())?;
+    }
+    if let Some(xml) = &self.info.manifest_xml {
+      zip.start_file("META-INF/manifest.xml", deflated)?;
+      zip.write_all(xml.as_bytes())?;
+    }
+
     // ── OEBPS ───────────────────────────────────────────────────────────────
     zip.add_directory("OEBPS/", deflated)?;
 
@@ -450,6 +472,9 @@ mod tests {
         fonts: vec![],
         css: None,
         version: 3,
+        encryption: None,
+        metadata_xml: None,
+        manifest_xml: None,
       },
       vec![
         chapter![
@@ -490,6 +515,9 @@ mod tests {
         fonts: vec![],
         css: None,
         version: 3,
+        encryption: None,
+        metadata_xml: None,
+        manifest_xml: None,
       },
       vec![
         chapter![

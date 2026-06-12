@@ -18,6 +18,12 @@ pub struct EpubInfo {
   pub css: Option<String>,
   /// EPUB spec version (use `3`).
   pub version: i32,
+  /// Raw XML written to `META-INF/encryption.xml`. Pass `null` to omit.
+  pub encryption: Option<String>,
+  /// Raw XML written to `META-INF/metadata.xml`. Pass `null` to omit.
+  pub metadata_xml: Option<String>,
+  /// Raw XML written to `META-INF/manifest.xml`. Pass `null` to omit.
+  pub manifest_xml: Option<String>,
 }
 
 /// An image embedded in the EPUB.
@@ -73,6 +79,9 @@ impl Epub {
           fonts: info.fonts,
           css: info.css,
           version: info.version as i8,
+          encryption: info.encryption,
+          metadata_xml: info.metadata_xml,
+          manifest_xml: info.manifest_xml,
         },
         chapters,
       ),
