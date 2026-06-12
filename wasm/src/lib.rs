@@ -15,6 +15,17 @@ struct EpubInfoInput {
   version: i8,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EpubImageInput {
+  id: String,
+  path: String,
+  /// Raw image bytes (a JS `Uint8Array` / number array).
+  data: Vec<u8>,
+  #[serde(default)]
+  cover: bool,
+}
+
 /// EPUB builder for browser environments.
 ///
 /// ```js
@@ -42,6 +53,7 @@ pub struct Epub {
   css: Option<String>,
   version: i8,
   chapters: Vec<Vec<String>>,
+  images: Vec<EpubImageInput>,
 }
 
 #[wasm_bindgen]
@@ -70,7 +82,18 @@ impl Epub {
       css: info.css,
       version: info.version,
       chapters,
+      images: Vec::new(),
     })
+  }
+
+  /// Attach images. Pass an array of `{ id, path, data, cover }` objects
+  /// where `data` is a `Uint8Array` of the raw image bytes. Flag exactly one
+  /// with `cover: true` to set the book cover.
+  #[wasm_bindgen(js_name = setImages)]
+  pub fn set_images(&mut self, images: JsValue) -> Result<(), JsError> {
+    self.images = serde_wasm_bindgen::from_value(images)
+      .map_err(|e| JsError::new(&e.to_string()))?;
+    Ok(())
   }
 
   /// Build the EPUB and return its bytes as a `Uint8Array`.
@@ -92,6 +115,18 @@ impl Epub {
       },
       self.chapters.clone(),
     );
+
+    let images = self
+      .images
+      .iter()
+      .map(|img| epub_gen::Image {
+        id: img.id.clone(),
+        path: img.path.clone(),
+        data: img.data.clone(),
+        cover: img.cover,
+      })
+      .collect();
+    let epub = epub.with_images(images);
 
     epub.archive().map_err(|e| JsError::new(&e.to_string()))
   }

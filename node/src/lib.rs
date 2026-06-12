@@ -20,6 +20,24 @@ pub struct EpubInfo {
   pub version: i32,
 }
 
+/// An image embedded in the EPUB.
+///
+/// Images are written to `OEBPS/images/<path>` and can be referenced from
+/// chapter paragraphs with raw markup, e.g.
+/// `<img src="images/diagram.png" alt="Diagram" />`.
+#[napi(object)]
+pub struct EpubImage {
+  /// Unique manifest id (letters, digits, `-`, `_`).
+  pub id: String,
+  /// File name written under `OEBPS/images/`, e.g. `cover.png`.
+  /// The extension determines the media-type.
+  pub path: String,
+  /// Raw image bytes.
+  pub data: Buffer,
+  /// When `true`, this image is the book cover (at most one).
+  pub cover: bool,
+}
+
 /// EPUB builder.
 ///
 /// Each chapter is an array of strings: index 0 is the chapter title,
@@ -28,6 +46,9 @@ pub struct EpubInfo {
 /// ```js
 /// const epub = new Epub(info, [
 ///   ['Chapter One', 'First paragraph.', 'Second paragraph.'],
+/// ]);
+/// epub.setImages([
+///   { id: 'cover-img', path: 'cover.png', data: coverBytes, cover: true },
 /// ]);
 /// ```
 #[napi]
@@ -56,6 +77,22 @@ impl Epub {
         chapters,
       ),
     }
+  }
+
+  /// Attach images to the EPUB. Pass an array of `EpubImage` objects.
+  /// Flag exactly one with `cover: true` to set the book cover.
+  #[napi]
+  pub fn set_images(&mut self, images: Vec<EpubImage>) {
+    let images = images
+      .into_iter()
+      .map(|img| epub_gen::Image {
+        id: img.id,
+        path: img.path,
+        data: img.data.to_vec(),
+        cover: img.cover,
+      })
+      .collect();
+    self.inner.set_images(images);
   }
 
   /// Build the EPUB and write it to `<title>.epub` in the current working directory.

@@ -27,7 +27,8 @@ npm run build:debug  # debug build (faster, no optimisations)
 This is a single-file Rust library (`src/lib.rs`) with no binary. The entire public API is two structs:
 
 - **`Info`** — metadata bag (title, author, publisher, lang, css, fonts, version).
-- **`EPUB`** — holds `Info` and `chapters: Vec<Vec<String>>`. Each chapter is a `Vec<String>` where index 0 is the title and subsequent entries become `<p>` elements.
+- **`EPUB`** — holds `Info`, `chapters: Vec<Vec<String>>`, and `images: Vec<Image>`. Each chapter is a `Vec<String>` where index 0 is the title and subsequent entries become `<p>` elements. Images are attached via `with_images(...)` (builder) or `set_images(...)`.
+- **`Image`** — embedded resource (`id`, `path`, `data: Vec<u8>`, `cover: bool`). Written to `OEBPS/images/<path>`; the extension drives the manifest media-type (`media_type_for`). One image may set `cover: true` to become the book cover (gets `properties="cover-image"`, the EPUB 2 `<meta name="cover">` hint, and an auto-generated `cover.xhtml` placed first in the spine). Reference non-cover images from chapter paragraphs with raw markup like `<img src="images/foo.png" alt="" />`.
 
 The main entry points are:
 - `EPUB::run()` — calls `archive()` then `write()`, panics on error, writes `<title>.epub` to the current directory.
@@ -41,7 +42,9 @@ META_INF/container.xml    (Stored)
 OEBPS/content.opf         (Deflated — package metadata + manifest + spine)
 OEBPS/toc.ncx             (Deflated — NCX navigation for EPUB 2 compat)
 OEBPS/toc.xhtml           (Deflated — EPUB 3 nav document)
+OEBPS/cover.xhtml         (Deflated — only when an Image has cover: true; first in spine)
 OEBPS/<slug>.xhtml        (Stored — one file per chapter, slug via `slugify`)
+OEBPS/images/<path>       (Stored for raster, Deflated for SVG — only when images present)
 OEBPS/styles.css          (Deflated — empty unless `Info::css` is Some)
 ```
 

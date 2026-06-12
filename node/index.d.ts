@@ -19,6 +19,23 @@ export interface EpubInfo {
   version: number
 }
 /**
+ * An image embedded in the EPUB.
+ *
+ * Images are written to `OEBPS/images/<path>` and can be referenced from
+ * chapter paragraphs with raw markup, e.g.
+ * `<img src="images/diagram.png" alt="Diagram" />`.
+ */
+export interface EpubImage {
+  /** Unique manifest id (letters, digits, `-`, `_`). */
+  id: string
+  /** File name written under `OEBPS/images/`, e.g. `cover.png`. The extension determines the media-type. */
+  path: string
+  /** Raw image bytes. */
+  data: Buffer
+  /** When `true`, this image is the book cover (at most one). */
+  cover: boolean
+}
+/**
  * EPUB builder.
  *
  * Each chapter is an array of strings: index 0 is the chapter title,
@@ -28,11 +45,19 @@ export interface EpubInfo {
  * const epub = new Epub(info, [
  *   ['Chapter One', 'First paragraph.', 'Second paragraph.'],
  * ]);
+ * epub.setImages([
+ *   { id: 'cover-img', path: 'cover.png', data: coverBytes, cover: true },
+ * ]);
  * ```
  */
 export declare class Epub {
   /** Create a new EPUB builder. */
   constructor(info: EpubInfo, chapters: Array<Array<string>>)
+  /**
+   * Attach images to the EPUB. Flag exactly one with `cover: true`
+   * to set the book cover.
+   */
+  setImages(images: Array<EpubImage>): void
   /** Build the EPUB and write it to `<title>.epub` in the current working directory. */
   run(): void
   /**

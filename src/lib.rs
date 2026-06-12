@@ -18,14 +18,69 @@ pub struct Info {
   pub version: i8,
 }
 
+/// An image embedded in the EPUB.
+///
+/// Images are written to `OEBPS/images/<path>` and can be referenced from
+/// chapter paragraphs with raw markup, e.g.
+/// `<img src="images/diagram.png" alt="Diagram" />`.
+pub struct Image {
+  /// Unique manifest id (must be a valid XML id — letters, digits, `-`, `_`).
+  pub id: String,
+  /// File name written under `OEBPS/images/`, e.g. `cover.png`.
+  /// The extension determines the media-type.
+  pub path: String,
+  /// Raw image bytes.
+  pub data: Vec<u8>,
+  /// When `true`, this image is the book cover: it receives
+  /// `properties="cover-image"` in the manifest, the EPUB 2
+  /// `<meta name="cover">` hint, and an auto-generated cover page placed
+  /// first in the spine. At most one image should set this.
+  pub cover: bool,
+}
+
 pub struct EPUB {
   info: Info,
   chapters: Vec<Vec<String>>,
+  images: Vec<Image>,
+}
+
+/// Maps a file extension to an EPUB 3 core media-type.
+/// Falls back to `application/octet-stream` for unknown extensions.
+fn media_type_for(path: &str) -> &'static str {
+  let ext = path
+    .rsplit('.')
+    .next()
+    .map(|e| e.to_ascii_lowercase())
+    .unwrap_or_default();
+  match ext.as_str() {
+    "png" => "image/png",
+    "jpg" | "jpeg" => "image/jpeg",
+    "gif" => "image/gif",
+    "svg" => "image/svg+xml",
+    "webp" => "image/webp",
+    _ => "application/octet-stream",
+  }
 }
 
 impl EPUB {
   pub fn new(info: Info, chapters: Vec<Vec<String>>) -> EPUB {
-    EPUB { info, chapters }
+    EPUB { info, chapters, images: Vec::new() }
+  }
+
+  /// Attach images to the EPUB. Returns `self` for chaining.
+  pub fn with_images(mut self, images: Vec<Image>) -> EPUB {
+    self.images = images;
+    self
+  }
+
+  /// Replace the EPUB's images in place.
+  pub fn set_images(&mut self, images: Vec<Image>) {
+    self.images = images;
+  }
+
+  /// The cover image, if any image was flagged `cover: true`.
+  fn cover(&self) -> Option<&Image> {
+    self.images.iter().find(|img| img.cover)
   }
 
   pub fn run(&mut self) {
@@ -79,12 +134,41 @@ impl EPUB {
       .collect::<Vec<_>>()
       .join("\n");
 
-    format!(
-      "    <item id=\"ncx\" href=\"toc.ncx\" media-type=\"application/x-dtbncx+xml\" />\n\
-       <item id=\"toc\" href=\"toc.xhtml\" media-type=\"application/xhtml+xml\" properties=\"nav\" />\n\
-       <item id=\"css\" href=\"styles.css\" media-type=\"text/css\" />\n\
-       {items}"
-    )
+    // Image resources. The cover image carries properties="cover-image".
+    let image_items: String = self.images
+      .iter()
+      .map(|img| {
+        let mtype = media_type_for(&img.path);
+        let props = if img.cover { " properties=\"cover-image\"" } else { "" };
+        format!(
+          "    <item id=\"{}\" href=\"images/{}\" media-type=\"{}\"{} />",
+          img.id, img.path, mtype, props
+        )
+      })
+      .collect::<Vec<_>>()
+      .join("\n");
+
+    // Auto-generated cover page (only when a cover image exists).
+    let cover_page = if self.cover().is_some() {
+      "\n    <item id=\"cover\" href=\"cover.xhtml\" media-type=\"application/xhtml+xml\" />"
+    } else {
+      ""
+    };
+
+    let mut s = String::new();
+    s.push_str("    <item id=\"ncx\" href=\"toc.ncx\" media-type=\"application/x-dtbncx+xml\" />\n");
+    s.push_str("    <item id=\"toc\" href=\"toc.xhtml\" media-type=\"application/xhtml+xml\" properties=\"nav\" />\n");
+    s.push_str("    <item id=\"css\" href=\"styles.css\" media-type=\"text/css\" />");
+    s.push_str(cover_page);
+    if !items.is_empty() {
+      s.push('\n');
+      s.push_str(&items);
+    }
+    if !image_items.is_empty() {
+      s.push('\n');
+      s.push_str(&image_items);
+    }
+    s
   }
 
   // spine idrefs must match the manifest item ids exactly (both use slugify default separator)
@@ -95,7 +179,41 @@ impl EPUB {
       .collect::<Vec<_>>()
       .join("\n");
 
-    format!("<spine toc=\"ncx\">\n    <itemref idref=\"toc\" />\n{items}\n  </spine>")
+    // Cover page leads the spine when present.
+    let cover_ref = if self.cover().is_some() {
+      "    <itemref idref=\"cover\" />\n"
+    } else {
+      ""
+    };
+
+    format!("<spine toc=\"ncx\">\n{cover_ref}    <itemref idref=\"toc\" />\n{items}\n  </spine>")
+  }
+
+  // EPUB 3 cover page displaying the cover image. Only emitted when a cover exists.
+  fn cover_xhtml(&self) -> Option<String> {
+    let cover = self.cover()?;
+    let mut s = String::new();
+    s.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+    s.push_str("<!DOCTYPE html>\n");
+    s.push_str("<html xmlns=\"http://www.w3.org/1999/xhtml\"\n");
+    s.push_str("      xmlns:epub=\"http://www.idpf.org/2007/ops\"\n");
+    write!(s, "      xml:lang=\"{0}\" lang=\"{0}\">\n", self.info.lang).unwrap();
+    s.push_str("  <head>\n");
+    s.push_str("    <meta charset=\"UTF-8\" />\n");
+    write!(s, "    <title>{}</title>\n", self.info.title).unwrap();
+    s.push_str("    <style>img { max-width: 100%; height: auto; }</style>\n");
+    s.push_str("  </head>\n");
+    s.push_str("  <body epub:type=\"cover\">\n");
+    s.push_str("    <section epub:type=\"cover\">\n");
+    write!(
+      s,
+      "      <img src=\"images/{}\" alt=\"{}\" />\n",
+      cover.path, self.info.title
+    ).unwrap();
+    s.push_str("    </section>\n");
+    s.push_str("  </body>\n");
+    s.push_str("</html>\n");
+    Some(s)
   }
 
   fn toc_xhtml(&self) -> String {
@@ -178,6 +296,10 @@ impl EPUB {
     write!(s, "    <dc:rights>Copyright &#x00A9; {year} {}</dc:rights>\n", self.info.publisher).unwrap();
     write!(s, "    <meta property=\"dcterms:modified\">{modified}</meta>\n").unwrap();
     s.push_str("    <meta property=\"ibooks:specified-fonts\">false</meta>\n");
+    // EPUB 2 cover hint for reading systems that don't read cover-image properties.
+    if let Some(cover) = self.cover() {
+      write!(s, "    <meta name=\"cover\" content=\"{}\" />\n", cover.id).unwrap();
+    }
     s.push_str("  </metadata>\n\n");
     write!(s, "  <manifest>\n{}\n  </manifest>\n\n", self.manifest()).unwrap();
     write!(s, "  {}\n\n", self.spine()).unwrap();
@@ -265,12 +387,32 @@ impl EPUB {
     zip.start_file("OEBPS/toc.xhtml", deflated)?;
     zip.write_all(self.nav_xhtml().as_bytes())?;
 
+    if let Some(cover_xhtml) = self.cover_xhtml() {
+      zip.start_file("OEBPS/cover.xhtml", deflated)?;
+      zip.write_all(cover_xhtml.as_bytes())?;
+    }
+
     for (title, xhtml) in &chapters {
       zip.start_file(
         format!("OEBPS/{}.xhtml", slugify!(title, separator = "_")),
         stored,
       )?;
       zip.write_all(xhtml.as_bytes())?;
+    }
+
+    // ── images (already-compressed formats stored without re-compression) ────
+    if !self.images.is_empty() {
+      zip.add_directory("OEBPS/images/", deflated)?;
+      for img in &self.images {
+        // SVG is text and benefits from Deflate; raster formats are stored.
+        let opts = if media_type_for(&img.path) == "image/svg+xml" {
+          deflated
+        } else {
+          stored
+        };
+        zip.start_file(format!("OEBPS/images/{}", img.path), opts)?;
+        zip.write_all(&img.data)?;
+      }
     }
 
     zip.start_file("OEBPS/styles.css", deflated)?;
@@ -323,5 +465,74 @@ mod tests {
     );
 
     epub.run();
+  }
+
+  // A 1x1 transparent PNG.
+  const PNG_1X1: [u8; 67] = [
+    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
+    0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+    0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4, 0x89, 0x00, 0x00, 0x00,
+    0x0A, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+    0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49,
+    0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+  ];
+
+  #[test]
+  fn it_build_with_images() {
+    let epub = EPUB::new(
+      Info {
+        title: String::from("test_images"),
+        description: String::from("test description"),
+        publisher: String::from("test publisher"),
+        author: String::from("test author"),
+        toc_title: String::from("Table of Contents"),
+        lang: String::from("en"),
+        fonts: vec![],
+        css: None,
+        version: 3,
+      },
+      vec![
+        chapter![
+          "Chapter One",
+          "Some text before the image.",
+          "<img src=\"images/inline.png\" alt=\"inline\" />"
+        ],
+      ],
+    )
+    .with_images(vec![
+      Image {
+        id: String::from("cover-img"),
+        path: String::from("cover.png"),
+        data: PNG_1X1.to_vec(),
+        cover: true,
+      },
+      Image {
+        id: String::from("inline-img"),
+        path: String::from("inline.png"),
+        data: PNG_1X1.to_vec(),
+        cover: false,
+      },
+    ]);
+
+    let bytes = epub.archive().expect("archive should build");
+    assert!(!bytes.is_empty());
+
+    // Verify the cover page, image entries, and manifest cover property exist.
+    let reader = std::io::Cursor::new(bytes);
+    let mut zip = zip::ZipArchive::new(reader).expect("valid zip");
+    let names: Vec<String> = (0..zip.len())
+      .map(|i| zip.by_index(i).unwrap().name().to_string())
+      .collect();
+    assert!(names.contains(&"OEBPS/cover.xhtml".to_string()));
+    assert!(names.contains(&"OEBPS/images/cover.png".to_string()));
+    assert!(names.contains(&"OEBPS/images/inline.png".to_string()));
+
+    let mut opf = String::new();
+    use std::io::Read;
+    zip.by_name("OEBPS/content.opf").unwrap().read_to_string(&mut opf).unwrap();
+    assert!(opf.contains("properties=\"cover-image\""));
+    assert!(opf.contains("<meta name=\"cover\" content=\"cover-img\""));
+    assert!(opf.contains("media-type=\"image/png\""));
+    assert!(opf.contains("<itemref idref=\"cover\" />"));
   }
 }
