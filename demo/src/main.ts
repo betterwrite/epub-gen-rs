@@ -10,9 +10,9 @@ import wasmUrl from '../../node/wasm/epub_gen_wasm_bg.wasm?url'
 await init(wasmUrl)   // passa a URL gerada pelo bundler
 
 const epub = new Epub(
-  { title: 'Meu Livro', description: '...', publisher: '...', author: '...',
-    tocTitle: 'Sumário', lang: 'pt', fonts: [], version: 3 },
-  [['Capítulo 1', 'Parágrafo um.']]
+  { title: 'Book', description: '...', publisher: '...', author: '...',
+    tocTitle: 'Book', lang: 'pt', fonts: [], version: 3 },
+  [['Chapter 1', 'First paragraph.']]
 )
 
 const bytes = epub.archive()
