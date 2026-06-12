@@ -28,8 +28,9 @@
   "scripts": {
     "build": "napi build --platform --release",
     "build:debug": "napi build --platform",
-    "build:wasm": "wasm-pack build ../wasm --target web --out-dir ../node/wasm",
-    "build:all": "napi build --platform --release && npm run build:wasm"
+    "build:wasm": "wasm-pack build ../wasm --target web --out-dir ../node/wasm && node -e \"require('fs').writeFileSync('wasm/.gitignore', '')\"",
+    "build:all": "napi build --platform --release && npm run build:wasm",
+    "prepublishOnly": "npm run build:wasm"
   },
   "devDependencies": {
     "@napi-rs/cli": "^2.18.0",
