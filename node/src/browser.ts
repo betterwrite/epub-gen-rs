@@ -6,10 +6,18 @@ export type { EpubInfo }
 export interface EpubImageBrowser {
   id: string
   path: string
-  /** Raw image bytes. */
-  data: Uint8Array
+  /** Raw image bytes as a `Uint8Array`, or a base64-encoded string. */
+  data: Uint8Array | string
   /** When `true`, this image is the book cover (at most one). */
   cover: boolean
+}
+
+function resolveData(data: Uint8Array | string): Uint8Array {
+  if (typeof data !== 'string') return data
+  const binary = atob(data)
+  const out = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i)
+  return out
 }
 
 /** Typed wrapper around the WASM Epub for browser environments. */
@@ -20,9 +28,11 @@ export class Epub {
     this.inner = new WasmEpub(info, chapters)
   }
 
-  /** Attach images. Flag exactly one with `cover: true` to set the book cover. */
+  /** Attach images. `data` may be a `Uint8Array` or a base64-encoded string. */
   setImages(images: EpubImageBrowser[]): void {
-    this.inner.setImages(images)
+    this.inner.setImages(
+      images.map(img => ({ ...img, data: resolveData(img.data) })),
+    )
   }
 
   /**
