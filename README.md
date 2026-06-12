@@ -1,4 +1,4 @@
-# EPUB Implementation in Rust (WIP)
+# EPUB 3.x Implementation in Rust
 
 [https://www.w3.org/TR/epub-33/](https://www.w3.org/TR/epub-33/)
 
@@ -13,7 +13,8 @@
 - [x] Validade data entries
 - [ ] Optional META_INF (encryption.xml, metadata.xml, manifest.xml, ...)
 - [x] `container.xml` access
-- [ ] Images, Checkbox and List's
+- [x] Images
+- [ ] Checkbox and List's
 - [ ] Custom Fonts
 
 ### Examples
