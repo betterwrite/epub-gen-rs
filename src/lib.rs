@@ -130,6 +130,44 @@ impl EPUB {
     list
   }
 
+  /// Converts bare HTML void elements to their XHTML self-closing form so that
+  /// chapter content written by callers with plain HTML does not produce
+  /// well-formedness errors in EPUB readers.
+  ///
+  /// Handles case-insensitive tags and optional whitespace before `>`, e.g.
+  /// `<br>`, `<BR>`, `<br >` → `<br />`.
+  fn xhtml_content(s: &str) -> String {
+    // Void elements defined by the HTML5 spec that must be self-closed in XHTML.
+    const VOID: &[&str] = &[
+      "area", "base", "br", "col", "embed", "hr", "img", "input",
+      "link", "meta", "param", "source", "track", "wbr",
+    ];
+    let mut out = s.to_owned();
+    for tag in VOID {
+      // Match <TAG> or <TAG > (case-insensitive) that are NOT already self-closed.
+      // We iterate in a simple loop to avoid a regex dependency.
+      let open = format!("<{tag}");
+      let mut i = 0;
+      while let Some(pos) = out[i..].to_ascii_lowercase().find(&open) {
+        let abs = i + pos;
+        let rest = &out[abs + open.len()..];
+        // Find the next `>` after the tag name.
+        if let Some(gt) = rest.find('>') {
+          let between = &rest[..gt]; // attributes or whitespace
+          // Skip if already self-closed (ends with `/`).
+          if !between.trim_end().ends_with('/') {
+            let end = abs + open.len() + gt; // position of `>`
+            out.replace_range(end..=end, " />");
+          }
+          i = abs + open.len() + gt + 1;
+        } else {
+          break;
+        }
+      }
+    }
+    out
+  }
+
   pub fn run(&mut self) {
     let bytes = self.archive().expect("failed to build EPUB archive");
     self.write(bytes);
@@ -141,7 +179,7 @@ impl EPUB {
       let content: String = chapter
         .iter()
         .skip(1)
-        .map(|p| format!("      <p>{p}</p>\n"))
+        .map(|p| format!("      <p>{}</p>\n", Self::xhtml_content(p)))
         .collect();
 
       // Built with write! to avoid Rust 2021 reserved-prefix errors on
@@ -554,6 +592,22 @@ mod tests {
     0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49,
     0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
   ];
+
+  #[test]
+  fn xhtml_content_normalises_void_elements() {
+    let cases = [
+      ("<br>", "<br />"),
+      ("<BR>", "<BR />"),
+      ("<br >", "<br  />"),
+      ("<br />", "<br />"),  // already self-closed — untouched
+      ("<hr>text", "<hr />text"),
+      ("<img src=\"a.png\">", "<img src=\"a.png\" />"),
+      ("<p>hello<br>world</p>", "<p>hello<br />world</p>"),
+    ];
+    for (input, expected) in cases {
+      assert_eq!(EPUB::xhtml_content(input), expected, "input: {input:?}");
+    }
+  }
 
   #[test]
   fn it_build_with_images() {
